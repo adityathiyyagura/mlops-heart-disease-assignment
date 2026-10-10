@@ -2,6 +2,10 @@
 
 This project implements a small but complete MLOps pipeline for the Heart Disease UCI dataset.
 
+## Repository
+
+GitHub: [mlops-heart-disease-assignment](https://github.com/adityathiyyagura/mlops-heart-disease-assignment)
+
 ## Project goals
 - Download and clean the dataset
 - Explore and summarize the data

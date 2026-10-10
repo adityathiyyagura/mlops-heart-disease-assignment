@@ -3,6 +3,8 @@
 ## 1. Objective
 The project aims to build an end-to-end machine learning pipeline for predicting heart disease risk using the UCI Heart Disease dataset. The solution includes data preprocessing, model training, experiment tracking, model packaging, CI/CD testing, API serving, Dockerization, and deployment configuration.
 
+Repository: [mlops-heart-disease-assignment](https://github.com/adityathiyyagura/mlops-heart-disease-assignment)
+
 ## 2. Dataset and problem definition
 Dataset: Heart Disease UCI dataset
 Goal: Binary classification of whether a patient is likely to have heart disease based on medical attributes.
