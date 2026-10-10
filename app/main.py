@@ -9,7 +9,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_
 from pydantic import BaseModel
 
 from heart_disease_mlop.data import FEATURE_NAMES
-from heart_disease_mlop.modeling import load_best_model, train_and_track
+from heart_disease_mlop.modeling import train_and_track
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATH = BASE_DIR / "artifacts" / "heart_disease_model.joblib"
