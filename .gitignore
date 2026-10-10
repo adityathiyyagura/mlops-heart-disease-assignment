@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.env
+.DS_Store
+mlruns/
+artifacts/
+*.joblib
+*.sqlite3
+.pytest_cache/
+.ipynb_checkpoints/
