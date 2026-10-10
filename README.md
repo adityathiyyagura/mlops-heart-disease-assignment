@@ -69,6 +69,35 @@ curl -X POST http://127.0.0.1:8000/predict \
 ## Docker
 
 ```bash
-docker build -t heart-disease-api .
-docker run -p 8000:8000 heart-disease-api
+docker build -t heart-disease-api:local .
+docker run --rm -p 8000:8000 heart-disease-api:local
+```
+
+## Local Kubernetes (Docker Desktop)
+
+Enable Kubernetes in Docker Desktop settings and wait until the cluster is running. These commands target the local Docker Desktop context; confirm the context before applying manifests so you do not deploy to a cloud cluster by accident.
+
+```bash
+kubectl config use-context docker-desktop
+kubectl config current-context
+docker tag heart-disease-api:local heart-disease-api:latest
+kubectl apply -f k8s/deployment.yaml
+kubectl rollout status deployment/heart-disease-api --timeout=180s
+kubectl get pods -l app=heart-disease-api
+kubectl get svc heart-disease-api
+```
+
+The Docker Desktop LoadBalancer exposes the API locally at `http://127.0.0.1` on port 80. Test the service with:
+
+```bash
+curl http://127.0.0.1/health
+curl http://127.0.0.1/metrics
+```
+
+Open `http://127.0.0.1/docs` to submit a sample request to `/predict`. Keep Docker Desktop Kubernetes running while using this URL. This is a local endpoint, not a public cloud URL.
+
+To remove the local deployment:
+
+```bash
+kubectl delete -f k8s/deployment.yaml
 ```
