@@ -20,35 +20,43 @@ EDA includes:
 - correlation heatmap
 - summary statistics
 
-Artifacts generated in the `artifacts/eda` directory.
+Plots are generated in `artifacts/eda` and logged to each MLflow run.
 
 ## 4. Modeling choices
 Two models were trained and evaluated:
 - Logistic Regression
 - Random Forest Classifier
 
-The data was split once into an 80% development partition and a 20% held-out test partition using stratification and a fixed random seed. Five-fold `StratifiedKFold` cross-validation was run only on the development partition. The held-out partition was excluded from cross-validation and used for the final test metrics. Cross-validation values below are mean ± sample standard deviation across the five folds. The Random Forest was selected using mean CV ROC-AUC; the held-out results are reported separately and were not used for model selection.
+The data was split once into an 80% development partition and a 20% held-out test partition using stratification and a fixed random seed. A five-fold `StratifiedKFold` `GridSearchCV` runs only on the development partition, with refitting by ROC-AUC. The holdout is excluded from tuning and used for the final test metrics. CV values below are mean ± fold standard deviation for the selected grid parameters; the CV search scores are used for selection, and held-out results are reported separately.
+
+Nominal fields `cp`, `restecg`, and `thal` are one-hot encoded with unknown categories ignored. Remaining binary, ordinal, and continuous fields are retained; Logistic Regression scales these numeric inputs while Random Forest leaves them unscaled.
+
+The Logistic Regression grid searches `C` in `{0.1, 1, 10}` and `class_weight` in `{None, balanced}`. Random Forest searches `n_estimators` in `{100, 200}`, `max_depth` in `{None, 6}`, and `min_samples_leaf` in `{1, 2}`. Each candidate is evaluated over five stratified folds.
 
 ### Five-fold stratified cross-validation (development data)
 
 | Model | Accuracy | Precision | Recall | ROC-AUC |
 |---|---:|---:|---:|---:|
-| Logistic Regression | 0.827 ± 0.066 | 0.849 ± 0.096 | 0.769 ± 0.108 | 0.869 ± 0.077 |
-| Random Forest | 0.810 ± 0.084 | 0.833 ± 0.124 | 0.760 ± 0.142 | 0.888 ± 0.062 |
+| Logistic Regression | 0.818 ± 0.091 | 0.833 ± 0.112 | 0.769 ± 0.119 | 0.888 ± 0.070 |
+| Random Forest | 0.810 ± 0.089 | 0.832 ± 0.115 | 0.760 ± 0.150 | 0.897 ± 0.059 |
 
 ### Final held-out test results
 
 | Model | Accuracy | Precision | Recall | ROC-AUC |
 |---|---:|---:|---:|---:|
-| Logistic Regression | 0.833 | 0.846 | 0.786 | 0.950 |
-| Random Forest (selected by CV) | 0.867 | 0.885 | 0.821 | 0.940 |
+| Logistic Regression | 0.850 | 0.880 | 0.786 | 0.951 |
+| Random Forest (selected by CV) | 0.800 | 0.833 | 0.714 | 0.932 |
+
+Selected parameters were Logistic Regression `C=0.1`, `class_weight=None`; Random Forest `n_estimators=200`, `max_depth=None`, `min_samples_leaf=2`. Random Forest is selected by mean CV ROC-AUC (0.897), although Logistic Regression has higher held-out ROC-AUC on this split (0.951 vs 0.932).
 
 ## 5. Experiment tracking
 MLflow was configured to log the following for each run:
 - hyperparameters
 - mean and standard deviation of five-fold CV accuracy, precision, recall, and ROC-AUC
 - separate held-out test accuracy, precision, recall, and ROC-AUC
-- model artifact
+- tuned parameters and serialized model artifact
+- EDA plots (class balance, age histogram, correlation heatmap) for each run
+- held-out confusion matrix and ROC curve for each run
 - experiment metadata
 
 The experiment is stored under `mlruns/`.
@@ -65,12 +73,12 @@ A FastAPI service exposes a `/predict` endpoint. It accepts JSON patient data an
 The app is containerized using Docker and can be run locally with:
 
 ```bash
-docker build -t heart-disease-api .
-docker run -p 8000:8000 heart-disease-api
+docker build -t heart-disease-api:cv-tuned .
+docker run -p 8000:8000 heart-disease-api:cv-tuned
 ```
 
 ## 8. CI/CD
-GitHub Actions runs Ruff linting, pytest, and model training on pushes and pull requests. Each run uploads the JUnit test report, training log, serialized model, and MLflow data. The latest hosted run completed successfully. Evidence screenshots: [run summary](../screenshots/ci_run_summary.png) and [job steps](../screenshots/ci_job_steps.png).
+GitHub Actions runs Ruff linting, pytest, and model training on pushes and pull requests. Each run uploads the JUnit test report, training log, serialized model, and MLflow data. The included screenshots show a successful workflow run; the updated preprocessing/tuning changes must also pass CI after they are pushed. Evidence: [run summary](../screenshots/ci_run_summary.png) and [job steps](../screenshots/ci_job_steps.png).
 
 ![GitHub Actions run summary](../screenshots/ci_run_summary.png)
 
@@ -79,7 +87,7 @@ GitHub Actions runs Ruff linting, pytest, and model training on pushes and pull 
 ## 9. Deployment and monitoring
 The API was deployed to the local Docker Desktop Kubernetes cluster (Kubernetes v1.34.1, context `docker-desktop`). Both replicas reached Running/Ready. The LoadBalancer is available at `http://127.0.0.1` on port 80; this is local-only, not a public cloud endpoint.
 
-The Kubernetes service returned successful responses for `/health`, `/predict`, and `/metrics`. A sample prediction returned class `0` with confidence `0.685`. The API exposes Prometheus metrics and logs requests. Deployment evidence: [pod status](../screenshots/kubernetes_pods.png), [service status](../screenshots/kubernetes_service.png), [health](../screenshots/kubernetes_health_response.png), [prediction](../screenshots/kubernetes_predict_response.png), and [metrics](../screenshots/kubernetes_metrics_response.png).
+The Kubernetes service returned successful responses for `/health`, `/predict`, and `/metrics`. The updated one-hot/tuned model is deployed as `heart-disease-api:cv-tuned`; a sample prediction returned class `0` with confidence `0.6524`. The API exposes Prometheus metrics and logs requests. Deployment evidence: [pod status](../screenshots/kubernetes_pods.png), [service status](../screenshots/kubernetes_service.png), [health](../screenshots/kubernetes_health_response.png), [prediction](../screenshots/kubernetes_predict_response.png), and [metrics](../screenshots/kubernetes_metrics_response.png).
 
 To deploy locally, select the `docker-desktop` context and run `kubectl apply -f k8s/deployment.yaml`, then verify with `kubectl rollout status deployment/heart-disease-api` and `kubectl get pods,svc`.
 

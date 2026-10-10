@@ -69,8 +69,8 @@ curl -X POST http://127.0.0.1:8000/predict \
 ## Docker
 
 ```bash
-docker build -t heart-disease-api:local .
-docker run --rm -p 8000:8000 heart-disease-api:local
+docker build -t heart-disease-api:cv-tuned .
+docker run --rm -p 8000:8000 heart-disease-api:cv-tuned
 ```
 
 ## Local Kubernetes (Docker Desktop)
@@ -80,7 +80,6 @@ Enable Kubernetes in Docker Desktop settings and wait until the cluster is runni
 ```bash
 kubectl config use-context docker-desktop
 kubectl config current-context
-docker tag heart-disease-api:local heart-disease-api:latest
 kubectl apply -f k8s/deployment.yaml
 kubectl rollout status deployment/heart-disease-api --timeout=180s
 kubectl get pods -l app=heart-disease-api

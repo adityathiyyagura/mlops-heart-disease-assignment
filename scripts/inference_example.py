@@ -5,6 +5,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import pandas as pd
+
+from heart_disease_mlop.data import FEATURE_NAMES
 from heart_disease_mlop.modeling import load_best_model
 
 
@@ -26,8 +29,9 @@ if __name__ == "__main__":
         "thal": 3,
     }
 
-    prediction = model.predict([list(sample.values())])
-    probabilities = model.predict_proba([list(sample.values())])[0]
+    features = pd.DataFrame([sample], columns=FEATURE_NAMES)
+    prediction = model.predict(features)
+    probabilities = model.predict_proba(features)[0]
     print({
         "sample": sample,
         "prediction": int(prediction[0]),

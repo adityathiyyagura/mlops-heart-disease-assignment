@@ -136,7 +136,7 @@ def _report_pages(styles):
         _p("Executive summary", section),
         _p("This project develops a reproducible binary classifier and wraps it in an API-oriented MLOps workflow. It covers source data acquisition, cleaning, exploratory analysis, model comparison, MLflow logging, automated tests, Docker packaging, Kubernetes configuration, request logging, and Prometheus metrics.", body),
         _p("The evaluated models are Logistic Regression and Random Forest. Model selection uses mean ROC-AUC from five-fold stratified cross-validation on development data. A separate stratified 20% holdout is kept out of cross-validation and reported as a final test set.", body),
-        _p("Selected by CV: Random Forest (mean CV ROC-AUC 0.888). Held-out test ROC-AUC: 0.940. These results are educational model metrics, not a clinical risk assessment or validation.", body),
+        _p("Selected by tuned CV: Random Forest (mean CV ROC-AUC 0.897). Held-out test ROC-AUC: 0.932. These results are educational model metrics, not a clinical risk assessment or validation.", body),
         Spacer(1, 0.12 * inch),
         _p("System at a glance", section),
         _table([
@@ -189,57 +189,65 @@ def _report_pages(styles):
     ]))
 
     pages.append(("3. Features and model pipeline", [
-        _p("The model uses the dataset's 13 input attributes. Several fields are integer-coded categories in the source data; the current implementation treats them as numeric values. Logistic Regression uses standardization. Random Forest uses tree splits and does not require scaling.", body),
+        _p("The model uses all 13 input attributes. Nominal fields cp, restecg, and thal are one-hot encoded with unknown values ignored. The other ten fields remain numeric: Logistic Regression standardizes them, while Random Forest uses them unscaled.", body),
         _p("Input schema", section),
         _table([
             ["Feature group", "Fields", "Preparation"],
             ["Demographic", "age, sex", "Numeric; source coding retained"],
             ["Clinical measurements", "trestbps, chol, thalach, oldpeak", "Numeric coercion; complete-case rows"],
-            ["Clinical categories", "cp, fbs, restecg, exang, slope, ca, thal", "Integer codes retained as numeric"],
+            ["Nominal categories", "cp, restecg, thal", "OneHotEncoder(handle_unknown=ignore)"],
+            ["Binary/ordinal/numeric", "sex, fbs, exang, slope, ca plus measurements", "Retained numeric; scaled for Logistic Regression"],
             ["Target", "target", "0 = absent; 1-4 mapped to present"],
         ], [1.5 * inch, 2.55 * inch, 3.0 * inch]),
         Spacer(1, 8),
         _p("Estimator construction", section),
         _table([
             ["Candidate", "Pipeline", "Reproducibility controls"],
-            ["Logistic Regression", "StandardScaler -> LogisticRegression(max_iter=1000)", "random_state=42"],
-            ["Random Forest", "RandomForestClassifier(n_estimators=200, class_weight=balanced)", "random_state=42"],
+            ["Logistic Regression", "One-hot + StandardScaler -> LogisticRegression", "Grid search C/class_weight; random_state=42"],
+            ["Random Forest", "One-hot + passthrough -> RandomForestClassifier", "Grid search tree size/depth/leaf; random_state=42"],
         ], [1.45 * inch, 3.35 * inch, 2.25 * inch]),
         Spacer(1, 8),
         _p("Inference uses the same named feature order as training. The API validates that all expected fields are present through its request schema. Model output is a binary class and the maximum class probability is returned as confidence; this confidence is not calibrated clinical probability.", body),
-        _p("Potential next improvement: one-hot encode nominal categories and use a ColumnTransformer. That would avoid implying an ordinal distance between category codes where the clinical coding does not support one.", small),
+        _p("The preprocessing is part of the persisted sklearn Pipeline, so training and inference share the same category encoding and scaling transformations.", small),
     ]))
 
     pages.append(("4. Validation protocol and model results", [
-        _p("A stratified 80/20 split is made once using random_state=42. Five-fold StratifiedKFold (shuffle enabled, random_state=42) runs on the 80% development data. Each fold preserves class representation. Model selection uses the mean CV ROC-AUC; the 20% holdout is reserved for a separate final comparison.", body),
+        _p("A stratified 80/20 split is made once using random_state=42. Five-fold StratifiedKFold GridSearchCV (shuffle enabled, random_state=42) searches each model using only the 80% development partition and refits by ROC-AUC. The 20% holdout is reserved for independent final metrics and is not used for tuning.", body),
+        _p("Search and selected settings", section),
+        _table([
+            ["Model", "Grid", "Selected settings"],
+            ["Logistic Regression", "C: 0.1, 1, 10; class_weight: None/balanced", "C=0.1; class_weight=None"],
+            ["Random Forest", "n_estimators: 100/200; max_depth: None/6; min_samples_leaf: 1/2", "200 trees; no depth cap; leaf=2"],
+        ], [1.35 * inch, 3.1 * inch, 2.6 * inch], font_size=7.1),
+        Spacer(1, 6),
         _p("Cross-validation on development partition (mean +/- sample standard deviation)", section),
         _table([
             ["Model", "Accuracy", "Precision", "Recall", "ROC-AUC"],
-            ["Logistic Regression", "0.827 +/- 0.066", "0.849 +/- 0.096", "0.769 +/- 0.108", "0.869 +/- 0.077"],
-            ["Random Forest", "0.810 +/- 0.084", "0.833 +/- 0.124", "0.760 +/- 0.142", "0.888 +/- 0.062"],
+            ["Logistic Regression", "0.818 +/- 0.091", "0.833 +/- 0.112", "0.769 +/- 0.119", "0.888 +/- 0.070"],
+            ["Random Forest", "0.810 +/- 0.089", "0.832 +/- 0.115", "0.760 +/- 0.150", "0.897 +/- 0.059"],
         ], [1.4 * inch, 1.12 * inch, 1.12 * inch, 1.12 * inch, 1.12 * inch], font_size=7.3),
         Spacer(1, 9),
         _p("Final held-out test metrics", section),
         _table([
             ["Model", "Accuracy", "Precision", "Recall", "ROC-AUC"],
-            ["Logistic Regression", "0.833", "0.846", "0.786", "0.950"],
-            ["Random Forest (CV-selected)", "0.867", "0.885", "0.821", "0.940"],
+            ["Logistic Regression", "0.850", "0.880", "0.786", "0.951"],
+            ["Random Forest (CV-selected)", "0.800", "0.833", "0.714", "0.932"],
         ], [1.4 * inch, 1.12 * inch, 1.12 * inch, 1.12 * inch, 1.12 * inch], font_size=7.3),
         Spacer(1, 9),
         _p("Selection and interpretation", section),
-        _p("Random Forest has the higher mean CV ROC-AUC (0.888 versus 0.869), so it is selected by the predeclared selection metric. On the single held-out split it also has higher accuracy, precision, and recall; Logistic Regression has a slightly higher held-out ROC-AUC. This divergence illustrates why cross-validation and a separately held-out result should both be reported rather than selecting on the test set.", body),
+        _p("Random Forest is selected by mean tuned CV ROC-AUC (0.897 versus 0.888). Logistic Regression scores higher on held-out ROC-AUC (0.951 versus 0.932), demonstrating why the holdout remains separate and results are reported independently rather than used for model selection.", body),
         _p("The standard deviations indicate fold-to-fold variability on a small dataset. These point estimates have substantial uncertainty and are not claims of generalization to a different hospital, population, or contemporary cohort.", small),
     ]))
 
     pages.append(("5. Experiment tracking and reproducibility", [
-        _p("MLflow is used to create one run per model. Each run records estimator parameters, a serialized sklearn model, held-out metrics, and CV summary metrics. CV metric names follow the form cv_<metric>_mean and cv_<metric>_std; holdout values are stored separately with a held_out_ prefix.", body),
+        _p("MLflow creates one run per model. Each run records tuned and estimator parameters, a serialized sklearn pipeline, held-out metrics, CV summary metrics, all three EDA plots, and held-out confusion matrix and ROC curve. CV metric names use cv_<metric>_mean/std; holdout metrics use the held_out_ prefix.", body),
         _p("Tracked CV summaries", section),
         _table([
             ["Metric", "Logistic Regression mean / std", "Random Forest mean / std"],
-            ["Accuracy", "0.827 / 0.066", "0.810 / 0.084"],
-            ["Precision", "0.849 / 0.096", "0.833 / 0.124"],
-            ["Recall", "0.769 / 0.108", "0.760 / 0.142"],
-            ["ROC-AUC", "0.869 / 0.077", "0.888 / 0.062"],
+            ["Accuracy", "0.818 / 0.091", "0.810 / 0.089"],
+            ["Precision", "0.833 / 0.112", "0.832 / 0.115"],
+            ["Recall", "0.769 / 0.119", "0.760 / 0.150"],
+            ["ROC-AUC", "0.888 / 0.070", "0.897 / 0.059"],
         ], [1.35 * inch, 2.85 * inch, 2.85 * inch]),
         Spacer(1, 8),
         _p("Project artifacts and entry points", section),
@@ -277,8 +285,8 @@ def _report_pages(styles):
         _p("Local run commands", section),
         Preformatted(
             'python -m heart_disease_mlop.train\n'
-            'docker build -t heart-disease-api .\n'
-            'docker run --rm -p 8000:8000 heart-disease-api\n'
+            'docker build -t heart-disease-api:cv-tuned .\n'
+            'docker run --rm -p 8000:8000 heart-disease-api:cv-tuned\n'
             'curl http://127.0.0.1:8000/health', styles["ReportCode"]),
         Spacer(1, 7),
         _p("The model is saved as a joblib pipeline and loaded by the service. The Dockerfile installs requirements, copies the project, exposes port 8000, and starts Uvicorn. A local TestClient prediction request returned HTTP 200 during verification; the confidence value is a model score, not a calibrated medical probability.", body),
@@ -286,7 +294,7 @@ def _report_pages(styles):
     ]))
 
     pages.append(("7. Testing and continuous integration", [
-        _p("Automated tests cover the main data interface, model construction/evaluation, and API prediction/metrics routes. The latest local verification ran six tests successfully. The project workflow is triggered on pushes and pull requests to main/master.", body),
+        _p("Automated tests cover the data interface, one-hot model preprocessing, model evaluation, and API prediction/metrics routes. The project workflow is triggered on pushes and pull requests to main/master.", body),
         _p("Current workflow stages", section),
         _table([
             ["Stage", "Action", "Status in workflow"],
@@ -299,10 +307,10 @@ def _report_pages(styles):
         Spacer(1, 9),
         _p("Quality gates and evidence", section),
         *_bullet_list([
-            "Local test result: 6 passed. Warnings include FastAPI lifecycle and TestClient deprecations; these do not fail the suite.",
+            "Local verification after the encoding/tuning changes: 9 tests passed; Ruff passed. FastAPI lifecycle and TestClient deprecations remain non-failing warnings.",
             "Training was executed locally and produced the CV-selected Random Forest artifact and MLflow runs.",
             "GitHub Actions runs Ruff lint, pytest, and model training; it writes JUnit and training logs and uploads the model plus MLflow run data.",
-            "The latest hosted Actions run succeeded. Screenshots are stored in screenshots/ci_run_summary.png and screenshots/ci_job_steps.png.",
+            "CI screenshots show a previously successful hosted run; the new encoding/tuning changes must pass a fresh run after push. Screenshots are stored in screenshots/ci_run_summary.png and screenshots/ci_job_steps.png.",
         ], body),
         _p("Hosted workflow evidence", section),
         _table([[
@@ -316,7 +324,7 @@ def _report_pages(styles):
     pages.append(("8. Deployment and observability", [
         _p("Deployment configuration", section),
         _p("The API was deployed to local Docker Desktop Kubernetes (v1.34.1, context docker-desktop). Both replicas reached Running/Ready. The LoadBalancer service is available at http://127.0.0.1:80 on this machine; there is no public cloud URL.", body),
-        _p("The locally built heart-disease-api:local image was tagged heart-disease-api:latest for the manifest. Deployment was verified with kubectl rollout status and kubectl get pods/service. The Service exposes port 80 and targets container port 8000.", body),
+        _p("The updated model is packaged as heart-disease-api:cv-tuned and referenced by the Kubernetes manifest. Deployment is re-verified with kubectl rollout status and kubectl get pods/service. The Service exposes port 80 and targets container port 8000.", body),
         _p("Request monitoring", section),
         _table([
             ["Signal", "Implementation", "Use"],
@@ -327,7 +335,7 @@ def _report_pages(styles):
         ], [1.35 * inch, 3.0 * inch, 2.7 * inch]),
         Spacer(1, 8),
         _p("Observed locally", section),
-        _p("The Kubernetes LoadBalancer returned successful responses for /health, /predict, and /metrics. The sample prediction was class 0 with confidence 0.685. Request logs were emitted by the API containers; metric counters are process-local to each replica.", body),
+        _p("The updated Kubernetes LoadBalancer returned successful responses for /health, /predict, and /metrics. The sample prediction was class 0 with confidence 0.6524. Request logs were emitted by the API containers; metric counters are process-local to each replica.", body),
         _p("Kubernetes pod and service screenshots", section),
         _table([[
             _image("screenshots/kubernetes_pods.png", 3.2 * inch, 1.95 * inch),
@@ -342,7 +350,7 @@ def _report_pages(styles):
         *_bullet_list([
             "Small, historical Cleveland subset: performance estimates may not transfer to another clinical setting or current population.",
             "Complete-case row removal can bias estimates if missingness is not random.",
-            "Integer-coded categories are treated as numeric; future work should review appropriate categorical encoding with domain expertise.",
+            "Nominal cp, restecg, and thal fields are one-hot encoded; other binary and ordinal fields remain numeric and should be reviewed with domain expertise.",
             "The reported confidence is not probability calibration, and the model is not a diagnostic device.",
             "The held-out test set is one split; external validation and calibration analysis are not performed.",
         ], body),
