@@ -304,6 +304,12 @@ def _report_pages(styles):
             "GitHub Actions runs Ruff lint, pytest, and model training; it writes JUnit and training logs and uploads the model plus MLflow run data.",
             "The latest hosted Actions run succeeded. Screenshots are stored in screenshots/ci_run_summary.png and screenshots/ci_job_steps.png.",
         ], body),
+        _p("Hosted workflow evidence", section),
+        _table([[
+            _image("screenshots/ci_run_summary.png", 3.2 * inch, 1.95 * inch),
+            _image("screenshots/ci_job_steps.png", 3.2 * inch, 1.95 * inch),
+        ], ["Successful run summary", "Lint, test, train, artifact upload"]], [3.45 * inch, 3.45 * inch]),
+        Spacer(1, 5),
         _p("The uploaded workflow artifact preserves test results, the training log, the trained model, and MLflow tracking data for inspection.", small),
     ]))
 

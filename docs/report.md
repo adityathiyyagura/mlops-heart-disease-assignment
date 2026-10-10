@@ -72,6 +72,10 @@ docker run -p 8000:8000 heart-disease-api
 ## 8. CI/CD
 GitHub Actions runs Ruff linting, pytest, and model training on pushes and pull requests. Each run uploads the JUnit test report, training log, serialized model, and MLflow data. The latest hosted run completed successfully. Evidence screenshots: [run summary](../screenshots/ci_run_summary.png) and [job steps](../screenshots/ci_job_steps.png).
 
+![GitHub Actions run summary](../screenshots/ci_run_summary.png)
+
+![GitHub Actions job steps](../screenshots/ci_job_steps.png)
+
 ## 9. Deployment and monitoring
 The API was deployed to the local Docker Desktop Kubernetes cluster (Kubernetes v1.34.1, context `docker-desktop`). Both replicas reached Running/Ready. The LoadBalancer is available at `http://127.0.0.1` on port 80; this is local-only, not a public cloud endpoint.
 
