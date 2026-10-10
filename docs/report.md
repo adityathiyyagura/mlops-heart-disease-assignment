@@ -70,10 +70,14 @@ docker run -p 8000:8000 heart-disease-api
 ```
 
 ## 8. CI/CD
-GitHub Actions runs lint/test/training automatically on pushes and pull requests.
+GitHub Actions runs Ruff linting, pytest, and model training on pushes and pull requests. Each run uploads the JUnit test report, training log, serialized model, and MLflow data. The latest hosted run completed successfully. Evidence screenshots: [run summary](../screenshots/ci_run_summary.png) and [job steps](../screenshots/ci_job_steps.png).
 
 ## 9. Deployment and monitoring
-A Kubernetes deployment manifest is provided under `k8s/deployment.yaml`. Monitoring is supported using Prometheus scraping metrics from the `/metrics` endpoint.
+The API was deployed to the local Docker Desktop Kubernetes cluster (Kubernetes v1.34.1, context `docker-desktop`). Both replicas reached Running/Ready. The LoadBalancer is available at `http://127.0.0.1` on port 80; this is local-only, not a public cloud endpoint.
+
+The Kubernetes service returned successful responses for `/health`, `/predict`, and `/metrics`. A sample prediction returned class `0` with confidence `0.685`. The API exposes Prometheus metrics and logs requests. Deployment evidence: [pod status](../screenshots/kubernetes_pods.png), [service status](../screenshots/kubernetes_service.png), [health](../screenshots/kubernetes_health_response.png), [prediction](../screenshots/kubernetes_predict_response.png), and [metrics](../screenshots/kubernetes_metrics_response.png).
+
+To deploy locally, select the `docker-desktop` context and run `kubectl apply -f k8s/deployment.yaml`, then verify with `kubectl rollout status deployment/heart-disease-api` and `kubectl get pods,svc`.
 
 ## 10. Architecture diagram
 
@@ -101,4 +105,4 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## 12. Conclusion
-This project demonstrates a practical, production-oriented MLOps workflow for building an ML application end to end, from data ingestion to deployment readiness.
+This project demonstrates an end-to-end MLOps workflow from data ingestion through model training, CI, Docker packaging, local Kubernetes deployment, and API monitoring. The service is not publicly deployed; local access is available at `http://127.0.0.1` while Docker Desktop Kubernetes is running.

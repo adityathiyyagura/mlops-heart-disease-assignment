@@ -301,16 +301,16 @@ def _report_pages(styles):
         *_bullet_list([
             "Local test result: 6 passed. Warnings include FastAPI lifecycle and TestClient deprecations; these do not fail the suite.",
             "Training was executed locally and produced the CV-selected Random Forest artifact and MLflow runs.",
-            "The current workflow does not yet include a lint step or upload generated model/report artifacts as workflow artifacts.",
-            "A successful hosted GitHub Actions run should be checked and captured from the repository Actions page before final submission.",
+            "GitHub Actions runs Ruff lint, pytest, and model training; it writes JUnit and training logs and uploads the model plus MLflow run data.",
+            "The latest hosted Actions run succeeded. Screenshots are stored in screenshots/ci_run_summary.png and screenshots/ci_job_steps.png.",
         ], body),
-        _p("For a stronger CI gate, add Ruff (or another selected linter), upload the trained model and test logs with actions/upload-artifact, and ensure training produces artifacts in a clean runner. Avoid committing transient MLflow state as a substitute for workflow artifacts.", small),
+        _p("The uploaded workflow artifact preserves test results, the training log, the trained model, and MLflow tracking data for inspection.", small),
     ]))
 
     pages.append(("8. Deployment and observability", [
         _p("Deployment configuration", section),
-        _p("The repository includes a Kubernetes Deployment with two replicas and a LoadBalancer Service on port 80 targeting the API container on port 8000. The manifest is a deployment configuration, not proof of a completed cluster rollout. No public cloud endpoint is claimed in this report.", body),
-        _p("For local verification, build the Docker image, configure a local Kubernetes context (for example Docker Desktop or Minikube), apply k8s/deployment.yaml, and inspect pods/service status. If the local cluster cannot expose a LoadBalancer, use kubectl port-forward and document the resulting local URL and access steps.", body),
+        _p("The API was deployed to local Docker Desktop Kubernetes (v1.34.1, context docker-desktop). Both replicas reached Running/Ready. The LoadBalancer service is available at http://127.0.0.1:80 on this machine; there is no public cloud URL.", body),
+        _p("The locally built heart-disease-api:local image was tagged heart-disease-api:latest for the manifest. Deployment was verified with kubectl rollout status and kubectl get pods/service. The Service exposes port 80 and targets container port 8000.", body),
         _p("Request monitoring", section),
         _table([
             ["Signal", "Implementation", "Use"],
@@ -321,8 +321,14 @@ def _report_pages(styles):
         ], [1.35 * inch, 3.0 * inch, 2.7 * inch]),
         Spacer(1, 8),
         _p("Observed locally", section),
-        _p("The API smoke test returned HTTP 200 for /predict and /metrics, and request log entries were emitted. The metrics endpoint included http_requests_total. Prometheus scraping is configured, but a running Prometheus/Grafana dashboard and real deployment screenshot remain deployment evidence to capture separately.", body),
-        _p("Before claiming deployment completion, record the cluster context, image tag, rollout status, service address or port-forward command, successful health/prediction requests, and timestamped screenshots.", small),
+        _p("The Kubernetes LoadBalancer returned successful responses for /health, /predict, and /metrics. The sample prediction was class 0 with confidence 0.685. Request logs were emitted by the API containers; metric counters are process-local to each replica.", body),
+        _p("Kubernetes pod and service screenshots", section),
+        _table([[
+            _image("screenshots/kubernetes_pods.png", 3.2 * inch, 1.95 * inch),
+            _image("screenshots/kubernetes_service.png", 3.2 * inch, 1.95 * inch),
+        ], ["Two replicas Running/Ready", "LoadBalancer on localhost:80"]], [3.45 * inch, 3.45 * inch]),
+        Spacer(1, 5),
+        _p("Endpoint screenshots are also included in screenshots/kubernetes_health_response.png, screenshots/kubernetes_predict_response.png, and screenshots/kubernetes_metrics_response.png.", small),
     ]))
 
     pages.append(("9. Limitations, conclusion, and references", [
@@ -335,7 +341,7 @@ def _report_pages(styles):
             "The held-out test set is one split; external validation and calibration analysis are not performed.",
         ], body),
         _p("Conclusion", section),
-        _p("The implementation demonstrates a reproducible progression from public data to a tracked classifier, tested API, container definition, deployment manifest, and request metrics. Five-fold stratified CV selects Random Forest by mean ROC-AUC while the final holdout is kept separate. The remaining submission evidence is operational: confirm a hosted Actions run, execute the chosen local/cloud deployment, and capture genuine screenshots and a live walkthrough.", body),
+        _p("The implementation demonstrates a reproducible progression from public data to a tracked classifier, tested API, Docker image, verified local Kubernetes deployment, and request metrics. Five-fold stratified CV selects Random Forest by mean ROC-AUC while the final holdout remains separate. The deployment is local-only; there is no public cloud endpoint.", body),
         _p("References", section),
         *_bullet_list([
             "UCI Machine Learning Repository, Heart Disease dataset: https://archive.ics.uci.edu/dataset/45/heart+disease",
@@ -346,7 +352,7 @@ def _report_pages(styles):
         ], small),
         Spacer(1, 7),
         _p("Submission evidence checklist", section),
-        _p("Code, data, notebooks/scripts, tests, Dockerfile, requirements, CI workflow, report, and Kubernetes manifest are included in the repository. Attach genuine hosted workflow/deployment screenshots and replace the generated slideshow with an actual pipeline recording before final submission.", small),
+        _p("Code, data, notebooks/scripts, tests, Dockerfile, requirements, CI workflow, report, Kubernetes manifest, and genuine CI/Docker/local-Kubernetes screenshots are included. Replace the generated slideshow with an actual pipeline recording before final submission.", small),
     ]))
 
     return pages
