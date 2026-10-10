@@ -27,12 +27,27 @@ Two models were trained and evaluated:
 - Logistic Regression
 - Random Forest Classifier
 
-The models were compared using cross-validation-friendly metrics including accuracy, precision, recall, and ROC-AUC.
+The data was split once into an 80% development partition and a 20% held-out test partition using stratification and a fixed random seed. Five-fold `StratifiedKFold` cross-validation was run only on the development partition. The held-out partition was excluded from cross-validation and used for the final test metrics. Cross-validation values below are mean ± sample standard deviation across the five folds. The Random Forest was selected using mean CV ROC-AUC; the held-out results are reported separately and were not used for model selection.
+
+### Five-fold stratified cross-validation (development data)
+
+| Model | Accuracy | Precision | Recall | ROC-AUC |
+|---|---:|---:|---:|---:|
+| Logistic Regression | 0.827 ± 0.066 | 0.849 ± 0.096 | 0.769 ± 0.108 | 0.869 ± 0.077 |
+| Random Forest | 0.810 ± 0.084 | 0.833 ± 0.124 | 0.760 ± 0.142 | 0.888 ± 0.062 |
+
+### Final held-out test results
+
+| Model | Accuracy | Precision | Recall | ROC-AUC |
+|---|---:|---:|---:|---:|
+| Logistic Regression | 0.833 | 0.846 | 0.786 | 0.950 |
+| Random Forest (selected by CV) | 0.867 | 0.885 | 0.821 | 0.940 |
 
 ## 5. Experiment tracking
 MLflow was configured to log the following for each run:
 - hyperparameters
-- evaluation metrics
+- mean and standard deviation of five-fold CV accuracy, precision, recall, and ROC-AUC
+- separate held-out test accuracy, precision, recall, and ROC-AUC
 - model artifact
 - experiment metadata
 

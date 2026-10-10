@@ -12,5 +12,19 @@ def test_evaluate_models_returns_metrics():
     metrics = evaluate_models("data/heart.csv")
     assert "logistic_regression" in metrics
     assert "random_forest" in metrics
-    assert metrics["logistic_regression"]["accuracy"] >= 0.0
-    assert metrics["random_forest"]["accuracy"] >= 0.0
+    for model_metrics in metrics.values():
+        assert set(model_metrics["cross_validation"]) == {
+            "accuracy",
+            "precision",
+            "recall",
+            "roc_auc",
+        }
+        assert set(model_metrics["held_out_test"]) == {
+            "accuracy",
+            "precision",
+            "recall",
+            "roc_auc",
+        }
+        for summary in model_metrics["cross_validation"].values():
+            assert 0.0 <= summary["mean"] <= 1.0
+            assert summary["std"] >= 0.0
