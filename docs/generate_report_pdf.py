@@ -310,13 +310,14 @@ def _report_pages(styles):
             "Local verification after the encoding/tuning changes: 9 tests passed; Ruff passed. FastAPI lifecycle and TestClient deprecations remain non-failing warnings.",
             "Training was executed locally and produced the CV-selected Random Forest artifact and MLflow runs.",
             "GitHub Actions runs Ruff lint, pytest, and model training; it writes JUnit and training logs and uploads the model plus MLflow run data.",
-            "CI screenshots show a previously successful hosted run; the new encoding/tuning changes must pass a fresh run after push. Screenshots are stored in screenshots/ci_run_summary.png and screenshots/ci_job_steps.png.",
+            "Fresh hosted verification: GitHub Actions run 38026080022, attempt 2, for commit 18775b8 completed successfully on 2026-10-11. Lint, all 9 tests, model training, and artifact upload passed. See <link href=\"https://github.com/adityathiyyagura/mlops-heart-disease-assignment/actions/runs/38026080022\">the run details</link>.",
+            "The screenshots below are from an earlier successful run and are retained as visual examples; the linked run is the current verification. Images: screenshots/ci_run_summary.png and screenshots/ci_job_steps.png.",
         ], body),
         _p("Hosted workflow evidence", section),
         _table([[
             _image("screenshots/ci_run_summary.png", 3.2 * inch, 1.95 * inch),
             _image("screenshots/ci_job_steps.png", 3.2 * inch, 1.95 * inch),
-        ], ["Successful run summary", "Lint, test, train, artifact upload"]], [3.45 * inch, 3.45 * inch]),
+        ], ["Earlier run summary", "Earlier job steps"]], [3.45 * inch, 3.45 * inch]),
         Spacer(1, 5),
         _p("The uploaded workflow artifact preserves test results, the training log, the trained model, and MLflow tracking data for inspection.", small),
     ]))

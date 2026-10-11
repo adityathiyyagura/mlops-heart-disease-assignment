@@ -78,7 +78,7 @@ docker run -p 8000:8000 heart-disease-api:cv-tuned
 ```
 
 ## 8. CI/CD
-GitHub Actions runs Ruff linting, pytest, and model training on pushes and pull requests. Each run uploads the JUnit test report, training log, serialized model, and MLflow data. The included screenshots show a successful workflow run; the updated preprocessing/tuning changes must also pass CI after they are pushed. Evidence: [run summary](../screenshots/ci_run_summary.png) and [job steps](../screenshots/ci_job_steps.png).
+GitHub Actions runs Ruff linting, pytest, and model training on pushes and pull requests. Each run uploads the JUnit test report, training log, serialized model, and MLflow data. Fresh hosted verification for commit `18775b8` completed successfully on 2026-10-11: [run 38026080022, attempt 2](https://github.com/adityathiyyagura/mlops-heart-disease-assignment/actions/runs/38026080022) passed lint, all 9 tests, model training, and artifact upload. The screenshots below are from an earlier successful run and remain as visual examples: [run summary](../screenshots/ci_run_summary.png) and [job steps](../screenshots/ci_job_steps.png).
 
 ![GitHub Actions run summary](../screenshots/ci_run_summary.png)
 
