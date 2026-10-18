@@ -1,4 +1,5 @@
 from pathlib import Path
+from math import atan2, cos, sin
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -6,7 +7,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.pdfgen.canvas import Canvas
-from reportlab.platypus import Frame, Image, Paragraph, Preformatted, Spacer, Table, TableStyle
+from reportlab.platypus import Flowable, Frame, Image, Paragraph, Preformatted, Spacer, Table, TableStyle
 
 BASE = Path(__file__).resolve().parent.parent
 PAGE_WIDTH, PAGE_HEIGHT = letter
@@ -14,6 +15,92 @@ LEFT = 0.68 * inch
 CONTENT_WIDTH = PAGE_WIDTH - 2 * LEFT
 CONTENT_BOTTOM = 0.65 * inch
 CONTENT_HEIGHT = 9.52 * inch
+
+class ArchitectureDiagram(Flowable):
+    def __init__(self):
+        super().__init__()
+        self.width = CONTENT_WIDTH
+        self.height = 169
+
+    def draw(self):
+        canvas = self.canv
+
+        def box(x, y, width, height, title, details, fill):
+            canvas.setFillColor(fill)
+            canvas.setStrokeColor(colors.HexColor("#46616F"))
+            canvas.setLineWidth(0.7)
+            canvas.roundRect(x, y, width, height, 4, fill=1, stroke=1)
+            canvas.setFillColor(colors.HexColor("#16324F"))
+            canvas.setFont("Helvetica-Bold", 6.2)
+            canvas.drawCentredString(x + width / 2, y + height - 11, title)
+            canvas.setFillColor(colors.HexColor("#34495E"))
+            canvas.setFont("Helvetica", 5.6)
+            for index, detail in enumerate(details):
+                canvas.drawCentredString(x + width / 2, y + height - 21 - index * 8, detail)
+
+        def arrow(points, dashed=False):
+            canvas.saveState()
+            canvas.setStrokeColor(colors.HexColor("#426579"))
+            canvas.setFillColor(colors.HexColor("#426579"))
+            canvas.setLineWidth(0.9)
+            if dashed:
+                canvas.setDash(2, 2)
+            path = canvas.beginPath()
+            path.moveTo(*points[0])
+            for point in points[1:]:
+                path.lineTo(*point)
+            canvas.drawPath(path, stroke=1, fill=0)
+            start_x, start_y = points[-2]
+            end_x, end_y = points[-1]
+            angle = atan2(end_y - start_y, end_x - start_x)
+            head = 4
+            wing = 2.2
+            arrowhead = canvas.beginPath()
+            arrowhead.moveTo(end_x, end_y)
+            arrowhead.lineTo(
+                end_x - head * cos(angle) + wing * sin(angle),
+                end_y - head * sin(angle) - wing * cos(angle),
+            )
+            arrowhead.lineTo(
+                end_x - head * cos(angle) - wing * sin(angle),
+                end_y - head * sin(angle) + wing * cos(angle),
+            )
+            arrowhead.close()
+            canvas.drawPath(arrowhead, stroke=0, fill=1)
+            canvas.restoreState()
+
+        canvas.setFillColor(colors.HexColor("#16324F"))
+        canvas.setFont("Helvetica-Bold", 6.5)
+        canvas.drawString(4, 160, "TRAINING AND TRACKING")
+        canvas.drawString(4, 96, "SERVING")
+
+        training_fill = colors.HexColor("#E8F1F7")
+        tracking_fill = colors.HexColor("#E6F2EF")
+        serving_fill = colors.HexColor("#EAF3F5")
+        support_fill = colors.HexColor("#F4F2E8")
+
+        box(4, 115, 76, 39, "UCI DATASET", ["Cleveland subset"], training_fill)
+        box(93, 115, 98, 39, "DOWNLOAD + CLEAN", ["EDA and feature prep"], training_fill)
+        box(204, 115, 142, 39, "PREPROCESS + MODEL TUNING", ["Logistic Regression · Random Forest", "5-fold CV evaluation"], training_fill)
+        box(359, 115, 142, 39, "MLFLOW TRACKING", ["Parameters · metrics · plots", "Logged model artifacts"], tracking_fill)
+
+        arrow([(80, 134), (93, 134)])
+        arrow([(191, 134), (204, 134)])
+        arrow([(346, 134), (359, 134)])
+
+        box(4, 52, 98, 39, "SAVED FITTED PIPELINE", ["artifacts/*.joblib"], tracking_fill)
+        box(119, 52, 104, 39, "FASTAPI SERVICE", ["/predict · /health", "/metrics · request logs"], serving_fill)
+        box(240, 52, 104, 39, "DOCKER IMAGE", ["heart-disease-api:cv-tuned"], serving_fill)
+        box(361, 52, 140, 39, "DOCKER DESKTOP KUBERNETES", ["2 replicas · LoadBalancer", "localhost:80"], serving_fill)
+
+        arrow([(275, 115), (275, 101), (53, 101), (53, 91)])
+        arrow([(102, 71), (119, 71)])
+        arrow([(223, 71), (240, 71)])
+        arrow([(344, 71), (361, 71)])
+
+        box(4, 3, 240, 30, "PROMETHEUS · SCRAPES /metrics", ["host.docker.internal:8001 · one Docker API process"], support_fill)
+        box(266, 3, 235, 30, "GITHUB ACTIONS · SUPPORTING CI", ["lint → tests → training → artifact upload"], support_fill)
+        arrow([(244, 18), (256, 18), (292, 42), (292, 52)], dashed=True)
 
 
 def _styles():
@@ -122,30 +209,27 @@ def _report_pages(styles):
     pages = []
 
     pages.append((None, [
-        Spacer(1, 0.65 * inch),
+        Spacer(1, 0.45 * inch),
         _p("Heart Disease<br/>Prediction MLOps", styles["ReportTitle"]),
-        Spacer(1, 0.2 * inch),
+        Spacer(1, 0.15 * inch),
         _p("End-to-end development, experiment tracking, serving, and operational readiness", styles["ReportSubtitle"]),
-        Spacer(1, 0.7 * inch),
+        Spacer(1, 0.45 * inch),
         _p("Machine Learning Operations (MLOps) | Assignment 01", styles["CoverMeta"]),
-        Spacer(1, 0.12 * inch),
+        Spacer(1, 0.08 * inch),
         _p("Dataset: UCI Heart Disease, Cleveland subset", styles["CoverMeta"]),
-        Spacer(1, 0.12 * inch),
+        Spacer(1, 0.08 * inch),
         _p("Repository: github.com/adityathiyyagura/mlops-heart-disease-assignment", styles["CoverMeta"]),
-        Spacer(1, 0.65 * inch),
+        Spacer(1, 0.35 * inch),
         _p("Executive summary", section),
-        _p("This project develops a reproducible binary classifier and wraps it in an API-oriented MLOps workflow. It covers source data acquisition, cleaning, exploratory analysis, model comparison, MLflow logging, automated tests, Docker packaging, Kubernetes configuration, request logging, and Prometheus metrics.", body),
-        _p("The evaluated models are Logistic Regression and Random Forest. Model selection uses mean ROC-AUC from five-fold stratified cross-validation on development data. A separate stratified 20% holdout is kept out of cross-validation and reported as a final test set.", body),
-        _p("Selected by tuned CV: Random Forest (mean CV ROC-AUC 0.897). Held-out test ROC-AUC: 0.932. These results are educational model metrics, not a clinical risk assessment or validation.", body),
-        Spacer(1, 0.12 * inch),
-        _p("System at a glance", section),
-        _table([
-            ["Data source -> cleaning/EDA -> stratified CV and held-out test"],
-            ["MLflow tracking -> selected fitted pipeline -> FastAPI"],
-            ["Docker image -> Kubernetes manifest | /metrics -> Prometheus scrape"],
-        ], [7.05 * inch], font_size=8),
-        Spacer(1, 0.12 * inch),
-        _p("Prepared from the project implementation and locally verified outputs. Deployment evidence is identified explicitly where it has not yet been captured.", styles["CoverMeta"]),
+        _p("This project builds a reproducible heart-disease classifier and documents ingestion, EDA, CV tuning, MLflow, API serving, Docker, Kubernetes, CI, and request monitoring.", body),
+        _p("Logistic Regression and Random Forest are tuned with five-fold stratified CV; a separate stratified 20% holdout reports final metrics.", body),
+        _p("CV-selected Random Forest: mean CV ROC-AUC 0.897; held-out ROC-AUC 0.932. This educational model is not clinically validated.", body),
+        Spacer(1, 0.05 * inch),
+        _p("End-to-end architecture", section),
+        Spacer(1, 2),
+        ArchitectureDiagram(),
+        Spacer(1, 0.03 * inch),
+        _p("CI is a supporting validation path, not part of live prediction. Monitoring results and scope are documented on page 9.", styles["ReportSmall"]),
     ]))
 
     pages.append(("1. Dataset acquisition and preparation", [
@@ -286,8 +370,8 @@ def _report_pages(styles):
         Preformatted(
             'python -m heart_disease_mlop.train\n'
             'docker build -t heart-disease-api:cv-tuned .\n'
-            'docker run --rm -p 8000:8000 heart-disease-api:cv-tuned\n'
-            'curl http://127.0.0.1:8000/health', styles["ReportCode"]),
+            'docker run --rm -p 8001:8000 heart-disease-api:cv-tuned\n'
+            'curl http://127.0.0.1:8001/health', styles["ReportCode"]),
         Spacer(1, 7),
         _p("The model is saved as a joblib pipeline and loaded by the service. The Dockerfile installs requirements, copies the project, exposes port 8000, and starts Uvicorn. A local TestClient prediction request returned HTTP 200 during verification; the confidence value is a model score, not a calibrated medical probability.", body),
         _p("The API is an educational demonstration and must not be used to diagnose or make treatment decisions.", small),
@@ -324,26 +408,28 @@ def _report_pages(styles):
 
     pages.append(("8. Deployment and observability", [
         _p("Deployment configuration", section),
-        _p("The API was deployed to local Docker Desktop Kubernetes (v1.34.1, context docker-desktop). Both replicas reached Running/Ready. The LoadBalancer service is available at http://127.0.0.1:80 on this machine; there is no public cloud URL.", body),
+        _p("The API was deployed to local Docker Desktop Kubernetes (v1.34.1, context docker-desktop). Both replicas were Running/Ready. The LoadBalancer is available at http://127.0.0.1:80 on this machine; this is not a public cloud URL.", body),
         _p("The updated model is packaged as heart-disease-api:cv-tuned and referenced by the Kubernetes manifest. Deployment is re-verified with kubectl rollout status and kubectl get pods/service. The Service exposes port 80 and targets container port 8000.", body),
         _p("Request monitoring", section),
         _table([
-            ["Signal", "Implementation", "Use"],
-            ["Request count", "http_requests_total labels method/path/status", "Traffic and response status trends"],
-            ["Latency", "http_request_duration_seconds histogram", "Request duration distribution"],
-            ["Application log", "Method, path, status, elapsed seconds", "Local/container request diagnostics"],
-            ["Scrape config", "monitoring/prometheus.yml", "Prometheus target configuration"],
+            ["Signal", "Implementation", "Observed use"],
+            ["Requests + latency", "Prometheus counters and histogram", "Counts and duration sums changed after requests"],
+            ["Scrape target", "host.docker.internal:8001/metrics", "Prometheus target was 1/1 UP"],
+            ["Application log", "Method, path, status, duration", "Verified with Docker container logs"],
         ], [1.35 * inch, 3.0 * inch, 2.7 * inch]),
         Spacer(1, 8),
-        _p("Observed locally", section),
-        _p("The updated Kubernetes LoadBalancer returned successful responses for /health, /predict, and /metrics. The sample prediction was class 0 with confidence 0.6524. Request logs were emitted by the API containers; metric counters are process-local to each replica.", body),
-        _p("Kubernetes pod and service screenshots", section),
+        _p("Monitoring Verification", section),
+        _p("On 2026-10-11, three GET /health requests and one POST /predict were sent to the Docker API at 127.0.0.1:8001. Its /metrics response showed http_requests_total increasing from 5 to 8 for /health and 2 to 3 for /predict. Histogram observation counts changed by the same amounts; duration sums changed from 0.01142 to 0.01402 seconds for /health and 0.09312 to 0.14113 seconds for /predict.", body),
+        _p("Prometheus 3.15.0 ran in Docker using monitoring/prometheus.yml. From Prometheus's own container network, host.docker.internal:8001/metrics reported 1/1 UP. Prometheus queries returned the request counters and latency observations. This scrape monitors the single Docker API process, not the separate two-replica Kubernetes Service; counters are process-local.", body),
+        _p("The API returned HTTP 200 for the sample prediction (class 0, confidence 0.6524). Docker logs showed method, path, status, and duration for the verification requests.", body),
+        _p("Monitoring captures: screenshots/api_metrics_counters.png, screenshots/prometheus_targets.png, screenshots/prometheus_request_counts.png, screenshots/prometheus_latency_query.png, and screenshots/api_request_logs.png. Kubernetes evidence: screenshots/kubernetes_pods.png and screenshots/kubernetes_service.png.", small),
+        _p("Monitoring evidence", section),
         _table([[
-            _image("screenshots/kubernetes_pods.png", 3.2 * inch, 1.95 * inch),
-            _image("screenshots/kubernetes_service.png", 3.2 * inch, 1.95 * inch),
-        ], ["Two replicas Running/Ready", "LoadBalancer on localhost:80"]], [3.45 * inch, 3.45 * inch]),
+            _image("screenshots/api_metrics_counters.png", 3.2 * inch, 1.8 * inch),
+            _image("screenshots/prometheus_targets.png", 3.2 * inch, 1.8 * inch),
+        ], ["Live /metrics counters and histogram", "Prometheus scrape target 1/1 UP"]], [3.45 * inch, 3.45 * inch]),
         Spacer(1, 5),
-        _p("Endpoint screenshots are also included in screenshots/kubernetes_health_response.png, screenshots/kubernetes_predict_response.png, and screenshots/kubernetes_metrics_response.png.", small),
+        _p("Kubernetes endpoint captures are also included in screenshots/kubernetes_health_response.png, screenshots/kubernetes_predict_response.png, and screenshots/kubernetes_metrics_response.png.", small),
     ]))
 
     pages.append(("9. Limitations, conclusion, and references", [

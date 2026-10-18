@@ -70,8 +70,10 @@ curl -X POST http://127.0.0.1:8000/predict \
 
 ```bash
 docker build -t heart-disease-api:cv-tuned .
-docker run --rm -p 8000:8000 heart-disease-api:cv-tuned
+docker run --rm -p 8001:8000 heart-disease-api:cv-tuned
 ```
+
+The Prometheus scrape target in `monitoring/prometheus.yml` uses host port `8001` for this Docker API. It is separate from the Kubernetes LoadBalancer service.
 
 ## Local Kubernetes (Docker Desktop)
 

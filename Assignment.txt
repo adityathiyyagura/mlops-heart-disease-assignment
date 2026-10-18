@@ -82,6 +82,3 @@ Deliverables
 • Final written report 10 pages as a doc/docx/pdf file. 
 • Deployed API URL (if public) or access instructions (for local testing) 
 • Include a short video recording of the overall pipeline 
- 
- 
- 

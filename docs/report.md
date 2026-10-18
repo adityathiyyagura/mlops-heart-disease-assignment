@@ -74,7 +74,7 @@ The app is containerized using Docker and can be run locally with:
 
 ```bash
 docker build -t heart-disease-api:cv-tuned .
-docker run -p 8000:8000 heart-disease-api:cv-tuned
+docker run -p 8001:8000 heart-disease-api:cv-tuned
 ```
 
 ## 8. CI/CD
@@ -89,21 +89,39 @@ The API was deployed to the local Docker Desktop Kubernetes cluster (Kubernetes 
 
 The Kubernetes service returned successful responses for `/health`, `/predict`, and `/metrics`. The updated one-hot/tuned model is deployed as `heart-disease-api:cv-tuned`; a sample prediction returned class `0` with confidence `0.6524`. The API exposes Prometheus metrics and logs requests. Deployment evidence: [pod status](../screenshots/kubernetes_pods.png), [service status](../screenshots/kubernetes_service.png), [health](../screenshots/kubernetes_health_response.png), [prediction](../screenshots/kubernetes_predict_response.png), and [metrics](../screenshots/kubernetes_metrics_response.png).
 
+### Monitoring Verification
+On 2026-10-11, three `GET /health` requests and one `POST /predict` request were sent to the running Docker API at `127.0.0.1:8001`. Its live `/metrics` response showed `http_requests_total` increasing from 5 to 8 for `/health` and from 2 to 3 for `/predict`. `http_request_duration_seconds_count` increased by the same amounts; duration sums changed from 0.01142 to 0.01402 seconds and from 0.09312 to 0.14113 seconds.
+
+Prometheus 3.15.0 was started in Docker with [`monitoring/prometheus.yml`](../monitoring/prometheus.yml). From Prometheus's own container network, `host.docker.internal:8001/metrics` was reachable and the Targets page showed `1 / 1 up`. Prometheus queries returned the request counters and latency histogram observations. This scrape covers the single Docker API process, not the separate two-replica Kubernetes Service; counters are process-local and are not aggregated across replicas. Docker logs for the test requests contained method, path, status, and duration. The Kubernetes LoadBalancer was verified separately at `http://127.0.0.1:80`.
+
+Evidence: [API metrics counters and latency](../screenshots/api_metrics_counters.png), [Prometheus target UP](../screenshots/prometheus_targets.png), [request counter query](../screenshots/prometheus_request_counts.png), [latency histogram query](../screenshots/prometheus_latency_query.png), and [API container request logs](../screenshots/api_request_logs.png).
+
 To deploy locally, select the `docker-desktop` context and run `kubectl apply -f k8s/deployment.yaml`, then verify with `kubectl rollout status deployment/heart-disease-api` and `kubectl get pods,svc`.
 
 ## 10. Architecture diagram
 
 ```mermaid
 flowchart LR
-    A[Data Source] --> B[Data Pipeline]
-    B --> C[EDA & Feature Prep]
-    C --> D[Train Models]
-    D --> E[MLflow Tracking]
-    E --> F[Best Model]
-    F --> G[FastAPI Service]
-    G --> H[Docker Container]
-    H --> I[Kubernetes Deployment]
-    G --> J[Prometheus Metrics]
+    subgraph training[Training and tracking]
+        UCI[UCI Heart Disease dataset] --> CLEAN[Download and clean]
+        CLEAN --> EDA[EDA and feature preparation]
+        EDA --> MODEL[Preprocessing, Logistic Regression, Random Forest, five-fold CV]
+        MODEL --> MLFLOW[MLflow: parameters, metrics, plots, model artifacts]
+        MODEL --> SAVED[Saved fitted pipeline: artifacts/heart_disease_model.joblib]
+    end
+
+    subgraph serving[Prediction serving]
+        SAVED --> API[FastAPI: /predict, /health, /metrics]
+        API --> DOCKER[Docker image: heart-disease-api:cv-tuned]
+        DOCKER --> K8S[Docker Desktop Kubernetes: 2 replicas, LoadBalancer localhost:80]
+    end
+
+    PROM[Prometheus scrape] -->|scrapes /metrics at host.docker.internal:8001| DOCKER
+    DOCKER -->|stdout| LOGS[Docker container logs]
+
+    subgraph cicd[Supporting CI, not runtime traffic]
+        ACTIONS[GitHub Actions] --> GATES[Lint, tests, training, artifact upload]
+    end
 ```
 
 ## 11. Setup instructions
